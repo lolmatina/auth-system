@@ -3,10 +3,12 @@ import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UserService } from '../user/user.service';
+import { FileUploadService } from './file-upload.service';
 export declare class AuthController {
     private readonly authService;
     private readonly userService;
-    constructor(authService: AuthService, userService: UserService);
+    private readonly fileUploadService;
+    constructor(authService: AuthService, userService: UserService, fileUploadService: FileUploadService);
     signup(signupDto: SignupDto, res: Response): Promise<Response<any, Record<string, any>>>;
     login(authDto: AuthDto, res: Response): Promise<Response<any, Record<string, any>>>;
     sendEmailVerification(email: string, res: Response): Promise<Response<any, Record<string, any>>>;

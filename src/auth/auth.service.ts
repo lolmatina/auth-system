@@ -5,7 +5,7 @@ import { AuthDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
 import { EmailService } from '../email/email.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { User } from '../user/entities/user.entity';
+import { User } from '../database/supabase.service';
 
 @Injectable()
 export class AuthService {
@@ -74,7 +74,7 @@ export class AuthService {
   async resendEmailVerification(email: string): Promise<void> {
     const user = await this.userService.findByEmail(email);
     if (!user) throw new NotFoundException('User not found');
-    if (user.email_verified_at) throw new BadRequestException('Email already verified');
+    if (user.email_verified_at !== null) throw new BadRequestException('Email already verified');
     await this.initiateEmailVerification(user);
   }
 
@@ -91,8 +91,8 @@ export class AuthService {
       document_front_url: params.frontPath,
       document_back_url: params.backPath,
       document_selfie_url: params.selfiePath,
-      documents_submitted_at: new Date(),
-    } as any);
+      documents_submitted_at: new Date().toISOString(),
+    });
 
     await this.telegramService.sendDocumentSubmission({
       email: user.email,

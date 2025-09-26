@@ -75,7 +75,7 @@ let AuthService = class AuthService {
         const user = await this.userService.findByEmail(email);
         if (!user)
             throw new common_1.NotFoundException('User not found');
-        if (user.email_verified_at)
+        if (user.email_verified_at !== null)
             throw new common_1.BadRequestException('Email already verified');
         await this.initiateEmailVerification(user);
     }
@@ -92,7 +92,7 @@ let AuthService = class AuthService {
             document_front_url: params.frontPath,
             document_back_url: params.backPath,
             document_selfie_url: params.selfiePath,
-            documents_submitted_at: new Date(),
+            documents_submitted_at: new Date().toISOString(),
         });
         await this.telegramService.sendDocumentSubmission({
             email: user.email,

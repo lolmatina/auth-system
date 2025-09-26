@@ -1,8 +1,7 @@
-import { Repository } from 'typeorm';
-import { Manager } from './entities/manager.entity';
+import { SupabaseService, Manager } from '../database/supabase.service';
 export declare class ManagerService {
-    private readonly managerRepository;
-    constructor(managerRepository: Repository<Manager>);
+    private readonly supabaseService;
+    constructor(supabaseService: SupabaseService);
     registerManager(chatId: string): Promise<Manager>;
     getAllManagers(): Promise<Manager[]>;
 }

@@ -4,9 +4,8 @@ import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
 import { SignupDto } from './dto/signup.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { UserService } from '../user/user.service';
+import { FileUploadService } from './file-upload.service';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -14,6 +13,7 @@ export class AuthController {
     private readonly authService: AuthService,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
+    private readonly fileUploadService: FileUploadService,
   ) {}
 
   @Post('signup')
@@ -111,14 +111,17 @@ export class AuthController {
 
   @Post('documents')
   @UseInterceptors(FilesInterceptor('files', 3, {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + extname(file.originalname));
-      },
-    }),
-    limits: { files: 3 },
+    limits: { 
+      fileSize: 5 * 1024 * 1024, // 5MB limit per file
+      files: 3 
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new BadRequestException('Only image files are allowed'), false);
+      }
+    },
   }))
   async uploadDocuments(
     @Body('email') email: string,
@@ -129,18 +132,29 @@ export class AuthController {
       if (!files || files.length !== 3) {
         throw new BadRequestException('Exactly 3 files are required');
       }
+
+      // Upload files to Supabase Storage
+      const { frontUrl, backUrl, selfieUrl } = await this.fileUploadService.uploadDocuments(email, {
+        front: files[0],
+        back: files[1],
+        selfie: files[2],
+      });
+
+      // Submit documents with Supabase URLs
       await this.authService.submitDocuments({
         email,
-        frontPath: files[0].path,
-        backPath: files[1].path,
-        selfiePath: files[2].path,
+        frontPath: frontUrl,
+        backPath: backUrl,
+        selfiePath: selfieUrl,
       });
-      return res.json({ message: 'Documents submitted' });
+
+      return res.json({ message: 'Documents submitted successfully' });
     } catch (error) {
+      console.error('Document upload error:', error);
       if (error.status) {
         return res.status(error.status).json({ message: error.message });
       }
-      return res.status(500).json({ message: 'Internal server error' });
+      return res.status(500).json({ message: 'Failed to upload documents' });
     }
   }
 }

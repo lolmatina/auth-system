@@ -13,6 +13,7 @@ const passport_1 = require("@nestjs/passport");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const jwt_strategy_1 = require("./jwt.strategy");
+const file_upload_service_1 = require("./file-upload.service");
 const user_module_1 = require("../user/user.module");
 const email_module_1 = require("../email/email.module");
 const telegram_module_1 = require("../telegram/telegram.module");
@@ -35,7 +36,7 @@ exports.AuthModule = AuthModule = __decorate([
             telegram_module_1.TelegramModule,
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
+        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, file_upload_service_1.FileUploadService],
         exports: [auth_service_1.AuthService],
     })
 ], AuthModule);

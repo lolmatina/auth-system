@@ -18,13 +18,13 @@ const auth_service_1 = require("./auth.service");
 const auth_dto_1 = require("./dto/auth.dto");
 const signup_dto_1 = require("./dto/signup.dto");
 const platform_express_1 = require("@nestjs/platform-express");
-const multer_1 = require("multer");
-const path_1 = require("path");
 const user_service_1 = require("../user/user.service");
+const file_upload_service_1 = require("./file-upload.service");
 let AuthController = class AuthController {
-    constructor(authService, userService) {
+    constructor(authService, userService, fileUploadService) {
         this.authService = authService;
         this.userService = userService;
+        this.fileUploadService = fileUploadService;
     }
     async signup(signupDto, res) {
         try {
@@ -112,19 +112,25 @@ let AuthController = class AuthController {
             if (!files || files.length !== 3) {
                 throw new common_1.BadRequestException('Exactly 3 files are required');
             }
+            const { frontUrl, backUrl, selfieUrl } = await this.fileUploadService.uploadDocuments(email, {
+                front: files[0],
+                back: files[1],
+                selfie: files[2],
+            });
             await this.authService.submitDocuments({
                 email,
-                frontPath: files[0].path,
-                backPath: files[1].path,
-                selfiePath: files[2].path,
+                frontPath: frontUrl,
+                backPath: backUrl,
+                selfiePath: selfieUrl,
             });
-            return res.json({ message: 'Documents submitted' });
+            return res.json({ message: 'Documents submitted successfully' });
         }
         catch (error) {
+            console.error('Document upload error:', error);
             if (error.status) {
                 return res.status(error.status).json({ message: error.message });
             }
-            return res.status(500).json({ message: 'Internal server error' });
+            return res.status(500).json({ message: 'Failed to upload documents' });
         }
     }
 };
@@ -169,14 +175,18 @@ __decorate([
 __decorate([
     (0, common_1.Post)('documents'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', 3, {
-        storage: (0, multer_1.diskStorage)({
-            destination: './uploads',
-            filename: (req, file, cb) => {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                cb(null, uniqueSuffix + (0, path_1.extname)(file.originalname));
-            },
-        }),
-        limits: { files: 3 },
+        limits: {
+            fileSize: 5 * 1024 * 1024,
+            files: 3
+        },
+        fileFilter: (req, file, cb) => {
+            if (file.mimetype.startsWith('image/')) {
+                cb(null, true);
+            }
+            else {
+                cb(new common_1.BadRequestException('Only image files are allowed'), false);
+            }
+        },
     })),
     __param(0, (0, common_1.Body)('email')),
     __param(1, (0, common_1.UploadedFiles)()),
@@ -189,6 +199,7 @@ exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('api/v1/auth'),
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => user_service_1.UserService))),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
-        user_service_1.UserService])
+        user_service_1.UserService,
+        file_upload_service_1.FileUploadService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

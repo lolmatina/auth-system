@@ -8,34 +8,30 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ManagerService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
-const manager_entity_1 = require("./entities/manager.entity");
+const supabase_service_1 = require("../database/supabase.service");
 let ManagerService = class ManagerService {
-    constructor(managerRepository) {
-        this.managerRepository = managerRepository;
+    constructor(supabaseService) {
+        this.supabaseService = supabaseService;
     }
     async registerManager(chatId) {
-        let manager = await this.managerRepository.findOne({ where: { telegram_chat_id: chatId } });
-        if (manager)
-            return manager;
-        manager = this.managerRepository.create({ telegram_chat_id: chatId });
-        return this.managerRepository.save(manager);
+        const existingManager = await this.supabaseService.findManagerByTelegramId(chatId);
+        if (existingManager)
+            return existingManager;
+        return this.supabaseService.createManager({
+            name: 'Manager',
+            telegram_chat_id: chatId,
+        });
     }
     async getAllManagers() {
-        return this.managerRepository.find();
+        return this.supabaseService.getAllManagers();
     }
 };
 exports.ManagerService = ManagerService;
 exports.ManagerService = ManagerService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(manager_entity_1.Manager)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [supabase_service_1.SupabaseService])
 ], ManagerService);
 //# sourceMappingURL=manager.service.js.map

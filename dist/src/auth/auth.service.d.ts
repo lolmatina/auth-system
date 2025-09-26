@@ -3,7 +3,7 @@ import { UserService } from '../user/user.service';
 import { AuthDto } from './dto/auth.dto';
 import { EmailService } from '../email/email.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { User } from '../user/entities/user.entity';
+import { User } from '../database/supabase.service';
 export declare class AuthService {
     private userService;
     private jwtService;

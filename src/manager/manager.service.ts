@@ -1,24 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Manager } from './entities/manager.entity';
+import { SupabaseService, Manager } from '../database/supabase.service';
 
 @Injectable()
 export class ManagerService {
   constructor(
-    @InjectRepository(Manager)
-    private readonly managerRepository: Repository<Manager>,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async registerManager(chatId: string): Promise<Manager> {
-    let manager = await this.managerRepository.findOne({ where: { telegram_chat_id: chatId } });
-    if (manager) return manager;
-    manager = this.managerRepository.create({ telegram_chat_id: chatId });
-    return this.managerRepository.save(manager);
+      // Check if manager already exists
+    const existingManager = await this.supabaseService.findManagerByTelegramId(chatId);
+    if (existingManager) return existingManager;
+    
+    // Create new manager
+    return this.supabaseService.createManager({
+      name: 'Manager',
+      telegram_chat_id: chatId,
+    });
   }
 
   async getAllManagers(): Promise<Manager[]> {
-    return this.managerRepository.find();
+    return this.supabaseService.getAllManagers();
   }
 }
 

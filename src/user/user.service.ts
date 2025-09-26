@@ -1,7 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { SupabaseService, User } from '../database/supabase.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
@@ -9,14 +7,11 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createUserDto.email },
-    });
+    const existingUser = await this.supabaseService.findUserByEmail(createUserDto.email);
 
     if (existingUser) {
       throw new BadRequestException('User with this email already exists');
@@ -24,18 +19,23 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    const user = this.userRepository.create({
+    return this.supabaseService.createUser({
       ...createUserDto,
       password: hashedPassword,
+      email_verified_at: null,
+      email_verification_code: null,
+      email_verification_expires_at: null,
+      document_front_url: null,
+      document_back_url: null,
+      document_selfie_url: null,
+      documents_submitted_at: null,
+      documents_verified_at: null,
     });
-
-    return this.userRepository.save(user);
   }
 
   async findAll(): Promise<User[]> {
-    return this.userRepository.find({
-      select: ['id', 'name', 'lastname', 'email', 'created_at', 'updated_at'],
-    });
+    // For security, we'll implement this if needed
+    throw new Error('Method not implemented');
   }
 
   async findOne(id: number): Promise<User> {
@@ -43,10 +43,7 @@ export class UserService {
       throw new BadRequestException('Invalid user ID');
     }
 
-    const user = await this.userRepository.findOne({
-      where: { id },
-      select: ['id', 'name', 'lastname', 'email', 'created_at', 'updated_at'],
-    });
+    const user = await this.supabaseService.findUserById(id);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -56,57 +53,59 @@ export class UserService {
   }
 
   async findByEmail(email: string): Promise<User> {
-    return this.userRepository.findOne({
-      where: { email },
-    });
+    return this.supabaseService.findUserByEmail(email);
   }
 
   async setEmailVerificationCode(userId: number, code: string, expiresAt: Date): Promise<void> {
-    await this.userRepository.update(userId, {
+    await this.supabaseService.updateUser(userId, {
       email_verification_code: code,
-      email_verification_expires_at: expiresAt,
-    } as any);
+      email_verification_expires_at: expiresAt.toISOString(),
+    });
   }
 
   async verifyEmailCode(email: string, code: string): Promise<boolean> {
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.supabaseService.findUserByEmail(email);
     if (!user || !user.email_verification_code || !user.email_verification_expires_at) return false;
+    
     const now = new Date();
+    const expiresAt = new Date(user.email_verification_expires_at);
+    
     if (user.email_verification_code !== code) return false;
-    if (user.email_verification_expires_at < now) return false;
-    await this.userRepository.update(user.id, {
-      email_verified_at: new Date(),
+    if (expiresAt < now) return false;
+    
+    await this.supabaseService.updateUser(user.id, {
+      email_verified_at: new Date().toISOString(),
       email_verification_code: null,
       email_verification_expires_at: null,
-    } as any);
+    });
+    
     return true;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: number, updateUserDto: UpdateUserDto | any): Promise<User> {
     if (!id || isNaN(id)) {
       throw new BadRequestException('Invalid user ID');
     }
 
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.supabaseService.findUserById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    if (updateUserDto.password) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    const updates: any = { ...updateUserDto };
+
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10);
     }
 
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.userRepository.findOne({
-        where: { email: updateUserDto.email },
-      });
+    if (updates.email && updates.email !== user.email) {
+      const existingUser = await this.supabaseService.findUserByEmail(updates.email);
       if (existingUser) {
         throw new BadRequestException('User with this email already exists');
       }
     }
 
-    await this.userRepository.update(id, updateUserDto);
-    return this.findOne(id);
+    return this.supabaseService.updateUser(id, updates);
   }
 
   async remove(id: number): Promise<void> {
@@ -114,11 +113,11 @@ export class UserService {
       throw new BadRequestException('Invalid user ID');
     }
 
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.supabaseService.findUserById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    await this.userRepository.remove(user);
+    await this.supabaseService.deleteUser(id);
   }
 }
