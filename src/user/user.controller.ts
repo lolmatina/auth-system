@@ -12,12 +12,15 @@ import {
   Res,
   Inject,
   forwardRef,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthService } from '../auth/auth.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/v1/user')
 export class UserController {
@@ -32,17 +35,10 @@ export class UserController {
   async create(@Body() createUserDto: CreateUserDto, @Res() res: Response) {
     try {
       const user = await this.userService.create(createUserDto);
-      const token = await this.authService.generateToken(user);
-      
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      await this.authService.initiateEmailVerification(user);
 
       return res.json({
-        message: 'User created successfully',
+        message: 'User created successfully. Please verify your email.',
         user: {
           id: user.id,
           name: user.name,
@@ -58,6 +54,31 @@ export class UserController {
           message: error.message,
         });
       }
+      return res.status(500).json({
+        message: 'Internal server error',
+      });
+    }
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentUser(@Request() req, @Res() res: Response) {
+    try {
+      const user = req.user;
+      return res.json({
+        user: {
+          id: user.id,
+          name: user.name,
+          lastname: user.lastname,
+          email: user.email,
+          email_verified_at: user.email_verified_at,
+          documents_submitted_at: user.documents_submitted_at,
+          documents_verified_at: user.documents_verified_at,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+        },
+      });
+    } catch (error) {
       return res.status(500).json({
         message: 'Internal server error',
       });

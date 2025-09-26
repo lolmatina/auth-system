@@ -19,6 +19,30 @@ export class User {
   @Column({ length: 255, unique: true })
   email: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  email_verified_at: Date | null;
+
+  @Column({ type: 'varchar', length: 6, nullable: true })
+  email_verification_code: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  email_verification_expires_at: Date | null;
+
+  @Column({ type: 'varchar', length: 1024, nullable: true })
+  document_front_url: string | null;
+
+  @Column({ type: 'varchar', length: 1024, nullable: true })
+  document_back_url: string | null;
+
+  @Column({ type: 'varchar', length: 1024, nullable: true })
+  document_selfie_url: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  documents_submitted_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  documents_verified_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

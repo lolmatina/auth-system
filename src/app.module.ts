@@ -5,9 +5,22 @@ import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
+import { ConfigModule } from '@nestjs/config';
+import { ManagerModule } from './manager/manager.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, HealthModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
+    DatabaseModule,
+    UserModule,
+    AuthModule,
+    HealthModule,
+    ManagerModule,
+    TelegramModule,
+    CacheModule.register(),
+  ],
   providers: [
     {
       provide: APP_PIPE,
