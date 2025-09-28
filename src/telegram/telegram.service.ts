@@ -226,15 +226,30 @@ export class TelegramService {
         });
 
         // Send documents individually (managers can still access them directly)
+        try {
         await this.sendDocument(manager.telegram_chat_id, params.frontPath, 'passport_front.jpg');
         await this.sendDocument(manager.telegram_chat_id, params.backPath, 'passport_back.jpg');
         await this.sendDocument(manager.telegram_chat_id, params.selfiePath, 'selfie_with_passport.jpg');
+        } catch (docError) {
+          console.error('Failed to send documents to manager, but notification was sent:', docError);
+          // Send a follow-up message indicating document sending failed
+          await axios.post(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+            chat_id: manager.telegram_chat_id,
+            text: `⚠️ **Document Sending Failed**\n\nThe documents for ${params.name} could not be sent automatically.\nPlease use the "Review Documents" button above to view them via web links.`,
+            parse_mode: 'Markdown'
+          });
+        }
       }
 
       console.log(`Document submission sent to Telegram managers for user: ${params.email}`);
     } catch (error) {
       console.error('Failed to send document submission to Telegram:', error);
+      // Only throw if it's a critical error (like no managers or bot token issues)
+      if (error.message.includes('bot token') || error.message.includes('No managers')) {
       throw new Error('Failed to send document submission to moderators');
+      }
+      // For other errors, log but don't throw to prevent blocking the user's submission
+      console.log('Document submission notification may have partially failed, but user submission was recorded');
     }
   }
 
@@ -250,13 +265,33 @@ export class TelegramService {
     });
   }
 
-  private async sendDocument(chatId: string, filePath: string, filename: string): Promise<void> {
+  private async sendDocument(chatId: string, filePathOrUrl: string, filename: string): Promise<void> {
+    try {
     const formData = new FormData();
     formData.append('chat_id', chatId);
-    formData.append('document', fs.createReadStream(filePath), { filename });
+      
+      // Check if it's a URL or local file path
+      if (filePathOrUrl.startsWith('http://') || filePathOrUrl.startsWith('https://')) {
+        // It's a URL, fetch the file first
+        const response = await axios.get(filePathOrUrl, { responseType: 'stream' });
+        formData.append('document', response.data, { filename });
+      } else {
+        // It's a local file path
+        if (fs.existsSync(filePathOrUrl)) {
+          formData.append('document', fs.createReadStream(filePathOrUrl), { filename });
+        } else {
+          console.error(`File not found: ${filePathOrUrl}`);
+          throw new Error(`File not found: ${filePathOrUrl}`);
+        }
+      }
+      
     await axios.post(`https://api.telegram.org/bot${this.botToken}/sendDocument`, formData, {
       headers: formData.getHeaders(),
-    });
+      });
+    } catch (error) {
+      console.error('Error sending document to Telegram:', error);
+      throw new Error(`Failed to send document: ${error.message}`);
+    }
   }
 
   private async sendMainMenu(chatId: string, message?: string): Promise<void> {
