@@ -87,3 +87,5 @@ CREATE POLICY "Service role can delete documents" ON storage.objects
 -- Allow public access to view documents (for the URLs to work)
 CREATE POLICY "Public can view documents" ON storage.objects
   FOR SELECT USING (bucket_id = 'documents');
+
+
